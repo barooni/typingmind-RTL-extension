@@ -12,6 +12,51 @@
     .tm-rtl { direction: rtl !important; text-align: right !important; }
     .tm-ltr { direction: ltr !important; text-align: left !important; }
   `;
+
+  // Append these rules to existing style.textContent or add as a new <style>
+  const centerCSS = `
+  /* Center workspace sidebar items */
+  div.fade-right-edge.flex-1.overflow-x-auto.scrollbar-hide {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  /* Inner wrapper: center its children and keep responsive column on md */
+  div.fade-right-edge .min-w-max {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    flex-direction: row !important; /* default: row on small screens */
+  }
+
+  /* At medium+ screens keep column layout but centered */
+  @media (min-width: 768px) {
+    div.fade-right-edge .min-w-max {
+      flex-direction: column !important;
+      gap: 0.5rem !important;
+    }
+  }
+
+  /* Make button spans center their content */
+  div.fade-right-edge button > span {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+
+  /* Ensure individual labels are centered */
+  div.fade-right-edge button span[style] {
+    text-align: center !important;
+  }
+  `;
+  style.textContent += centerCSS;
+
   document.head.appendChild(style);
 
   function isMostlyRTL(text) {
@@ -56,12 +101,12 @@
         applyDirection(el, isMostlyRTL(text));
       };
 
-      // common events
+      // Common events
       el.addEventListener('input', checkAndApply, { passive: true });
       el.addEventListener('keyup', checkAndApply, { passive: true });
       el.addEventListener('paste', () => setTimeout(checkAndApply, 50), { passive: true });
       el.addEventListener('compositionend', checkAndApply, { passive: true });
-      // initial
+      // Initial
       setTimeout(checkAndApply, 100);
     }
 
@@ -71,7 +116,7 @@
       }
     }
 
-    // initial scan and on DOM changes
+    // Initial scan and on DOM changes
     scanEditors();
     const obs = new MutationObserver(scanEditors);
     obs.observe(document.body, { childList: true, subtree: true });
@@ -84,7 +129,7 @@
         for (const node of m.addedNodes) {
           processNodeRecursively(node);
         }
-        if (m.type === 'characterData') { // text changed
+        if (m.type === 'characterData') { // Text changed
           processNodeRecursively(m.target);
         }
       }
@@ -120,7 +165,7 @@
 
     nodeObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 
-    // initial scan: major content elements
+    // Initial scan: major content elements
     setTimeout(() => {
       document.querySelectorAll('div, p, span').forEach(el => evaluateAndApplyToMessage(el));
     }, 500);
