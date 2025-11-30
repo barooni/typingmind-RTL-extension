@@ -12,49 +12,59 @@
     .tm-rtl { direction: rtl !important; text-align: right !important; }
     .tm-ltr { direction: ltr !important; text-align: left !important; }
 
-    /* --- Center workspace bottom bar items --- */
-
-    /* Main container that currently has justify-start/items-center */
-    [data-element-id="workspace-bar"] .fade-right-edge {
-      display: flex !important;
-      align-items: center !important;
+    /* Force center alignment for the bottom workspace bar tabs */
+    .fade-right-edge.flex-1.overflow-x-auto.scrollbar-hide.flex {
       justify-content: center !important;
+      align-items: center !important;
       text-align: center !important;
       padding-left: 0 !important;
       padding-right: 0 !important;
     }
 
-    /* Inner wrapper .min-w-max: center its children */
-    [data-element-id="workspace-bar"] .fade-right-edge .min-w-max {
-      display: flex !important;
-      align-items: center !important;
+    .fade-right-edge .min-w-max {
       justify-content: center !important;
+      align-items: center !important;
+      text-align: center !important;
       gap: 0.5rem !important;
-      flex-direction: row !important; /* row on small screens */
     }
 
-    /* On md and above keep column layout but centered */
-    @media (min-width: 768px) {
-      [data-element-id="workspace-bar"] .fade-right-edge .min-w-max {
-        flex-direction: column !important;
-        gap: 0.5rem !important;
-      }
-    }
-
-    /* Make each nav button span center its content */
-    [data-element-id="workspace-bar"] .fade-right-edge button > span {
-      display: flex !important;
+    .fade-right-edge button > span {
       justify-content: center !important;
       align-items: center !important;
       text-align: center !important;
     }
 
-    /* Ensure labels (the text) are centered */
-    [data-element-id="workspace-bar"] .fade-right-edge button span[style] {
+    .fade-right-edge button span[style] {
       text-align: center !important;
     }
   `;
   document.head.appendChild(style);
+
+  // Additionally, clean up Tailwind utility classes that force "start" alignment
+  function centerWorkspaceBar() {
+    try {
+      const bar = document.querySelector('[data-element-id="workspace-bar"] .fade-right-edge');
+      if (!bar) return;
+
+      // Remove Tailwind alignment classes that conflict
+      bar.classList.remove('justify-start');
+      bar.classList.remove('items-start');
+      // Ensure flex center
+      bar.classList.add('flex');
+      bar.style.justifyContent = 'center';
+      bar.style.alignItems = 'center';
+
+      const inner = bar.querySelector('.min-w-max');
+      if (inner) {
+        inner.classList.remove('justify-start');
+        inner.classList.remove('items-start');
+        inner.style.justifyContent = 'center';
+        inner.style.alignItems = 'center';
+      }
+    } catch (e) {
+      console.warn('Error while centering workspace bar:', e);
+    }
+  }
 
   function isMostlyRTL(text) {
     if (!text) return false;
@@ -98,12 +108,10 @@
         applyDirection(el, isMostlyRTL(text));
       };
 
-      // Common events
       el.addEventListener('input', checkAndApply, { passive: true });
       el.addEventListener('keyup', checkAndApply, { passive: true });
       el.addEventListener('paste', () => setTimeout(checkAndApply, 50), { passive: true });
       el.addEventListener('compositionend', checkAndApply, { passive: true });
-      // Initial
       setTimeout(checkAndApply, 100);
     }
 
@@ -113,7 +121,6 @@
       }
     }
 
-    // Initial scan and on DOM changes
     scanEditors();
     const obs = new MutationObserver(scanEditors);
     obs.observe(document.body, { childList: true, subtree: true });
@@ -126,7 +133,7 @@
         for (const node of m.addedNodes) {
           processNodeRecursively(node);
         }
-        if (m.type === 'characterData') { // Text changed
+        if (m.type === 'characterData') {
           processNodeRecursively(m.target);
         }
       }
@@ -142,10 +149,8 @@
         return;
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
-      // Probably a message element; filter out input/controls/ui elements
       const tag = node.tagName.toLowerCase();
       if (tag === 'textarea' || tag === 'input' || node.getAttribute('contenteditable') === 'true') return;
-      // If this element appears to contain text
       evaluateAndApplyToMessage(node);
       if (node.children && node.children.length) {
         for (const ch of node.children) processNodeRecursively(ch);
@@ -153,7 +158,6 @@
     }
 
     function evaluateAndApplyToMessage(el) {
-      // Find visible text inside the element
       const text = el.innerText || el.textContent || '';
       if (!text.trim()) return;
       const rtl = isMostlyRTL(text);
@@ -162,7 +166,6 @@
 
     nodeObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 
-    // Initial scan: major content elements
     setTimeout(() => {
       document.querySelectorAll('div, p, span').forEach(el => evaluateAndApplyToMessage(el));
     }, 500);
@@ -172,10 +175,18 @@
   function init() {
     watchEditors();
     watchMessages();
+
+    // Center the bar now and also whenever DOM changes
+    centerWorkspaceBar();
+    const barObserver = new MutationObserver(centerWorkspaceBar);
+    const workspaceBarRoot = document.querySelector('[data-element-id="workspace-bar"]');
+    if (workspaceBarRoot) {
+      barObserver.observe(workspaceBarRoot, { childList: true, subtree: true, attributes: true });
+    }
+
     console.log('TypingMind Auto-RTL extension initialized');
   }
 
-  // If DOM isn't ready wait
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
