@@ -1,10 +1,24 @@
 // Auto RTL for TypingMind - generic extension/userscript
+
 (function () {
   'use strict';
 
   // Settings
   const RTL_CHAR_RANGES = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
-  const MIN_CHAR_RATIO = 0.30; // Minimum ratio of RTL characters to consider the text as RTL
+  const MIN_CHAR_RATIO = 0.30;
+
+  // === Selectors to EXCLUDE from RTL/LTR processing ===
+  const EXCLUDED_SELECTORS = [
+    '[data-element-id="workspace-bar"]',
+    '[data-element-id="workspace-bar"] *',  // همه فرزندان workspace-bar
+    'nav',
+    'header',
+    'footer',
+    '[role="navigation"]',
+    '[role="menu"]',
+    '[role="menubar"]',
+    '[role="toolbar"]'
+  ].join(', ');
 
   // Add stylesheet (RTL helpers only)
   const style = document.createElement('style');
@@ -14,10 +28,36 @@
   `;
   document.head.appendChild(style);
 
+  // ---- Helper: Check if element should be excluded ----
+  function shouldExclude(el) {
+    if (!el || !el.matches) return true;
+    try {
+      return el.matches(EXCLUDED_SELECTORS) || el.closest('[data-element-id="workspace-bar"]');
+    } catch (e) {
+      return false;
+    }
+  }
+
   // ---- Center only the bottom workspace bar (tabs) ----
   function centerWorkspaceBarOnce() {
     const bar = document.querySelector('[data-element-id="workspace-bar"] .fade-right-edge');
     if (!bar) return;
+
+    // === پاک کردن کلاس‌های tm-rtl/tm-ltr که اشتباهی اضافه شده ===
+    const workspaceRoot = document.querySelector('[data-element-id="workspace-bar"]');
+    if (workspaceRoot) {
+      workspaceRoot.querySelectorAll('.tm-rtl, .tm-ltr').forEach(el => {
+        el.classList.remove('tm-rtl', 'tm-ltr');
+        el.removeAttribute('dir');
+        el.style.removeProperty('direction');
+        el.style.removeProperty('text-align');
+      });
+      // خود workspace-bar را هم پاک کن
+      workspaceRoot.classList.remove('tm-rtl', 'tm-ltr');
+      workspaceRoot.removeAttribute('dir');
+      workspaceRoot.style.removeProperty('direction');
+      workspaceRoot.style.removeProperty('text-align');
+    }
 
     // Main container: force flex center via inline style
     bar.style.display = 'flex';
@@ -39,7 +79,6 @@
       inner.style.textAlign = 'center';
       inner.style.gap = '0.5rem';
 
-      // row on small, column on md+ اگر خواستی عوضش می‌کنی
       inner.style.flexDirection = window.innerWidth >= 768 ? 'column' : 'row';
 
       inner.classList.remove('justify-start', 'items-start');
@@ -57,15 +96,12 @@
   }
 
   function setupWorkspaceBarCentering() {
-    // یک بار در شروع
     centerWorkspaceBarOnce();
 
-    // هر بار ساختار workspace-bar عوض شد، دوباره center کن
     const root = document.querySelector('[data-element-id="workspace-bar"]');
     if (!root) return;
 
     const observer = new MutationObserver(() => {
-      // با یک تاخیر خیلی کوچک، اجازه بده React/Tailwind کارش رو بکنه، بعد ما override کنیم
       setTimeout(centerWorkspaceBarOnce, 0);
     });
 
@@ -75,7 +111,6 @@
       attributes: true,
     });
 
-    // روی resize هم flexDirection رو دوباره تنظیم کن
     window.addEventListener('resize', () => {
       const bar = document.querySelector('[data-element-id="workspace-bar"] .fade-right-edge .min-w-max');
       if (!bar) return;
@@ -99,6 +134,9 @@
 
   function applyDirection(el, rtl) {
     if (!el) return;
+    // === چک کن که المنت جزو استثناها نباشد ===
+    if (shouldExclude(el)) return;
+    
     el.classList.toggle('tm-rtl', rtl);
     el.classList.toggle('tm-ltr', !rtl);
     try {
@@ -117,6 +155,8 @@
     ];
 
     function handleEditor(el) {
+      // === چک کن که المنت جزو استثناها نباشد ===
+      if (shouldExclude(el)) return;
       if (el._tm_rtl_attached) return;
       el._tm_rtl_attached = true;
 
@@ -165,6 +205,10 @@
         return;
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
+      
+      // === چک کن که المنت جزو استثناها نباشد ===
+      if (shouldExclude(node)) return;
+      
       const tag = node.tagName.toLowerCase();
       if (tag === 'textarea' || tag === 'input' || node.getAttribute('contenteditable') === 'true') return;
       evaluateAndApplyToMessage(node);
@@ -174,6 +218,9 @@
     }
 
     function evaluateAndApplyToMessage(el) {
+      // === چک کن که المنت جزو استثناها نباشد ===
+      if (shouldExclude(el)) return;
+      
       const text = el.innerText || el.textContent || '';
       if (!text.trim()) return;
       const rtl = isMostlyRTL(text);
@@ -183,7 +230,12 @@
     nodeObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
 
     setTimeout(() => {
-      document.querySelectorAll('div, p, span').forEach(el => evaluateAndApplyToMessage(el));
+      document.querySelectorAll('div, p, span').forEach(el => {
+        // === چک کن که المنت جزو استثناها نباشد ===
+        if (!shouldExclude(el)) {
+          evaluateAndApplyToMessage(el);
+        }
+      });
     }, 500);
   }
 
