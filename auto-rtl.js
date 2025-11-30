@@ -6,64 +6,55 @@
   const RTL_CHAR_RANGES = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
   const MIN_CHAR_RATIO = 0.30; // Minimum ratio of RTL characters to consider the text as RTL
 
-  // Add stylesheet
+  // Add stylesheet (RTL helpers)
   const style = document.createElement('style');
   style.textContent = `
     .tm-rtl { direction: rtl !important; text-align: right !important; }
     .tm-ltr { direction: ltr !important; text-align: left !important; }
-
-    /* Force center alignment for the bottom workspace bar tabs */
-    .fade-right-edge.flex-1.overflow-x-auto.scrollbar-hide.flex {
-      justify-content: center !important;
-      align-items: center !important;
-      text-align: center !important;
-      padding-left: 0 !important;
-      padding-right: 0 !important;
-    }
-
-    .fade-right-edge .min-w-max {
-      justify-content: center !important;
-      align-items: center !important;
-      text-align: center !important;
-      gap: 0.5rem !important;
-    }
-
-    .fade-right-edge button > span {
-      justify-content: center !important;
-      align-items: center !important;
-      text-align: center !important;
-    }
-
-    .fade-right-edge button span[style] {
-      text-align: center !important;
-    }
   `;
   document.head.appendChild(style);
 
-  // Additionally, clean up Tailwind utility classes that force "start" alignment
+  // Hard-center the workspace bottom bar using JS (not just CSS)
   function centerWorkspaceBar() {
-    try {
-      const bar = document.querySelector('[data-element-id="workspace-bar"] .fade-right-edge');
-      if (!bar) return;
-
-      // Remove Tailwind alignment classes that conflict
-      bar.classList.remove('justify-start');
-      bar.classList.remove('items-start');
-      // Ensure flex center
-      bar.classList.add('flex');
-      bar.style.justifyContent = 'center';
-      bar.style.alignItems = 'center';
-
-      const inner = bar.querySelector('.min-w-max');
-      if (inner) {
-        inner.classList.remove('justify-start');
-        inner.classList.remove('items-start');
-        inner.style.justifyContent = 'center';
-        inner.style.alignItems = 'center';
-      }
-    } catch (e) {
-      console.warn('Error while centering workspace bar:', e);
+    const bar = document.querySelector('[data-element-id="workspace-bar"] .fade-right-edge');
+    if (!bar) {
+      // console.log('centerWorkspaceBar: bar not found');
+      return;
     }
+
+    // Make sure this is flex and full-width
+    bar.style.display = 'flex';
+    bar.style.justifyContent = 'center';
+    bar.style.alignItems = 'center';
+    bar.style.textAlign = 'center';
+    bar.style.paddingLeft = '0';
+    bar.style.paddingRight = '0';
+
+    // Remove any Tailwind "start" alignment classes if present
+    bar.classList.remove('justify-start');
+    bar.classList.remove('items-start');
+
+    const inner = bar.querySelector('.min-w-max');
+    if (inner) {
+      inner.style.display = 'flex';
+      inner.style.justifyContent = 'center';
+      inner.style.alignItems = 'center';
+      inner.style.textAlign = 'center';
+      inner.style.gap = '0.5rem';
+
+      inner.classList.remove('justify-start');
+      inner.classList.remove('items-start');
+    }
+
+    // Center button spans
+    bar.querySelectorAll('button > span').forEach(span => {
+      span.style.display = 'flex';
+      span.style.justifyContent = 'center';
+      span.style.alignItems = 'center';
+      span.style.textAlign = 'center';
+    });
+
+    console.log('centerWorkspaceBar: applied centering');
   }
 
   function isMostlyRTL(text) {
@@ -176,11 +167,15 @@
     watchEditors();
     watchMessages();
 
-    // Center the bar now and also whenever DOM changes
+    // Center bar initially
     centerWorkspaceBar();
-    const barObserver = new MutationObserver(centerWorkspaceBar);
+
+    // And re-apply whenever workspace bar mutates
     const workspaceBarRoot = document.querySelector('[data-element-id="workspace-bar"]');
     if (workspaceBarRoot) {
+      const barObserver = new MutationObserver(() => {
+        centerWorkspaceBar();
+      });
       barObserver.observe(workspaceBarRoot, { childList: true, subtree: true, attributes: true });
     }
 
