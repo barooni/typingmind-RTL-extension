@@ -11,52 +11,49 @@
   style.textContent = `
     .tm-rtl { direction: rtl !important; text-align: right !important; }
     .tm-ltr { direction: ltr !important; text-align: left !important; }
-  `;
 
-  // Append these rules to existing style.textContent or add as a new <style>
-  const centerCSS = `
-  /* Center workspace sidebar items */
-  div.fade-right-edge.flex-1.overflow-x-auto.scrollbar-hide {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    text-align: center !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-  }
+    /* --- Center workspace bottom bar items --- */
 
-  /* Inner wrapper: center its children and keep responsive column on md */
-  div.fade-right-edge .min-w-max {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 0.5rem !important;
-    flex-direction: row !important; /* default: row on small screens */
-  }
-
-  /* At medium+ screens keep column layout but centered */
-  @media (min-width: 768px) {
-    div.fade-right-edge .min-w-max {
-      flex-direction: column !important;
-      gap: 0.5rem !important;
+    /* Main container that currently has justify-start/items-center */
+    [data-element-id="workspace-bar"] .fade-right-edge {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      text-align: center !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
     }
-  }
 
-  /* Make button spans center their content */
-  div.fade-right-edge button > span {
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    text-align: center !important;
-  }
+    /* Inner wrapper .min-w-max: center its children */
+    [data-element-id="workspace-bar"] .fade-right-edge .min-w-max {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 0.5rem !important;
+      flex-direction: row !important; /* row on small screens */
+    }
 
-  /* Ensure individual labels are centered */
-  div.fade-right-edge button span[style] {
-    text-align: center !important;
-  }
+    /* On md and above keep column layout but centered */
+    @media (min-width: 768px) {
+      [data-element-id="workspace-bar"] .fade-right-edge .min-w-max {
+        flex-direction: column !important;
+        gap: 0.5rem !important;
+      }
+    }
+
+    /* Make each nav button span center its content */
+    [data-element-id="workspace-bar"] .fade-right-edge button > span {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+      text-align: center !important;
+    }
+
+    /* Ensure labels (the text) are centered */
+    [data-element-id="workspace-bar"] .fade-right-edge button span[style] {
+      text-align: center !important;
+    }
   `;
-  style.textContent += centerCSS;
-
   document.head.appendChild(style);
 
   function isMostlyRTL(text) {
