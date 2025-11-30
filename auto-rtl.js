@@ -1,10 +1,9 @@
-// Auto RTL for TypingMind - Optimized
+// Auto RTL for TypingMind - Fast (First Word Detection)
 (function(){'use strict';
 const RTL=/[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/,
-RATIO=.3,
 EXCLUDE='[data-element-id="workspace-bar"],button,nav,header,footer,[role=navigation],[role=menu],[role=menubar],[role=toolbar]';
 
-// استایل‌ها - با specificity بالا برای دکمه‌ها
+// استایل‌ها
 const s=document.createElement('style');
 s.textContent=`
 .tm-rtl{direction:rtl!important;text-align:right!important}
@@ -33,12 +32,15 @@ document.head.appendChild(s);
 // چک exclude
 const excl=e=>!e||!e.matches||e.matches(EXCLUDE)||e.closest(EXCLUDE);
 
-// تشخیص RTL
+// ✅ الگوریتم جدید: فقط کلمه اول رو چک کن
 const isRTL=t=>{
-  if(!t)return!1;
-  let n=0,r=0;
-  for(const c of t)if(/\S/.test(c)){if(/\p{Letter}/u.test(c))n++;if(RTL.test(c))r++}
-  return n>0&&r/n>=RATIO;
+  if(!t)return false;
+  // پیدا کردن اولین کلمه (رشته‌ای از کاراکترهای غیر فاصله)
+  const match = t.match(/\S+/);
+  if(!match)return false;
+  const firstWord = match[0];
+  // اگه کلمه اول حداقل یک کاراکتر RTL داشت، کل بلوک RTL بشه
+  return RTL.test(firstWord);
 };
 
 // اعمال جهت
