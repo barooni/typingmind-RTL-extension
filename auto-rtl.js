@@ -6,7 +6,7 @@
   const RTL_CHAR_RANGES = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
   const MIN_CHAR_RATIO = 0.30; // Minimum ratio of RTL characters to consider the text as RTL
 
-  // Add stylesheet (RTL helpers)
+  // Add stylesheet (RTL helpers only)
   const style = document.createElement('style');
   style.textContent = `
     .tm-rtl { direction: rtl !important; text-align: right !important; }
@@ -14,39 +14,38 @@
   `;
   document.head.appendChild(style);
 
-  // Hard-center the workspace bottom bar using JS (not just CSS)
-  function centerWorkspaceBar() {
+  // ---- Center only the bottom workspace bar (tabs) ----
+  function centerWorkspaceBarOnce() {
     const bar = document.querySelector('[data-element-id="workspace-bar"] .fade-right-edge');
-    if (!bar) {
-      // console.log('centerWorkspaceBar: bar not found');
-      return;
-    }
+    if (!bar) return;
 
-    // Make sure this is flex and full-width
+    // Main container: force flex center via inline style
     bar.style.display = 'flex';
     bar.style.justifyContent = 'center';
     bar.style.alignItems = 'center';
     bar.style.textAlign = 'center';
-    bar.style.paddingLeft = '0';
-    bar.style.paddingRight = '0';
+    bar.style.paddingLeft = '0px';
+    bar.style.paddingRight = '0px';
 
-    // Remove any Tailwind "start" alignment classes if present
-    bar.classList.remove('justify-start');
-    bar.classList.remove('items-start');
+    // Remove Tailwind "start" alignment classes if they exist
+    bar.classList.remove('justify-start', 'items-start');
 
+    // Inner wrapper that holds all buttons
     const inner = bar.querySelector('.min-w-max');
     if (inner) {
       inner.style.display = 'flex';
-      inner.style.justifyContent = 'center';
       inner.style.alignItems = 'center';
+      inner.style.justifyContent = 'center';
       inner.style.textAlign = 'center';
       inner.style.gap = '0.5rem';
 
-      inner.classList.remove('justify-start');
-      inner.classList.remove('items-start');
+      // row on small, column on md+ اگر خواستی عوضش می‌کنی
+      inner.style.flexDirection = window.innerWidth >= 768 ? 'column' : 'row';
+
+      inner.classList.remove('justify-start', 'items-start');
     }
 
-    // Center button spans
+    // Center each button's span content
     bar.querySelectorAll('button > span').forEach(span => {
       span.style.display = 'flex';
       span.style.justifyContent = 'center';
@@ -54,9 +53,37 @@
       span.style.textAlign = 'center';
     });
 
-    console.log('centerWorkspaceBar: applied centering');
+    console.log('[Auto-RTL] centerWorkspaceBarOnce applied');
   }
 
+  function setupWorkspaceBarCentering() {
+    // یک بار در شروع
+    centerWorkspaceBarOnce();
+
+    // هر بار ساختار workspace-bar عوض شد، دوباره center کن
+    const root = document.querySelector('[data-element-id="workspace-bar"]');
+    if (!root) return;
+
+    const observer = new MutationObserver(() => {
+      // با یک تاخیر خیلی کوچک، اجازه بده React/Tailwind کارش رو بکنه، بعد ما override کنیم
+      setTimeout(centerWorkspaceBarOnce, 0);
+    });
+
+    observer.observe(root, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+    });
+
+    // روی resize هم flexDirection رو دوباره تنظیم کن
+    window.addEventListener('resize', () => {
+      const bar = document.querySelector('[data-element-id="workspace-bar"] .fade-right-edge .min-w-max');
+      if (!bar) return;
+      bar.style.flexDirection = window.innerWidth >= 768 ? 'column' : 'row';
+    });
+  }
+
+  // ---- RTL logic for editors & messages ----
   function isMostlyRTL(text) {
     if (!text) return false;
     let totalLetters = 0, rtlLetters = 0;
@@ -81,7 +108,6 @@
     } catch (e) { /* Some elements might be readonly */ }
   }
 
-  // Detect and apply on editors (input / textarea / contenteditable)
   function watchEditors() {
     const editorSelectorCandidates = [
       'textarea',
@@ -117,7 +143,6 @@
     obs.observe(document.body, { childList: true, subtree: true });
   }
 
-  // Detect and apply on new messages (bubbles)
   function watchMessages() {
     const nodeObserver = new MutationObserver(mutations => {
       for (const m of mutations) {
@@ -162,24 +187,11 @@
     }, 500);
   }
 
-  // Start
   function init() {
     watchEditors();
     watchMessages();
-
-    // Center bar initially
-    centerWorkspaceBar();
-
-    // And re-apply whenever workspace bar mutates
-    const workspaceBarRoot = document.querySelector('[data-element-id="workspace-bar"]');
-    if (workspaceBarRoot) {
-      const barObserver = new MutationObserver(() => {
-        centerWorkspaceBar();
-      });
-      barObserver.observe(workspaceBarRoot, { childList: true, subtree: true, attributes: true });
-    }
-
-    console.log('TypingMind Auto-RTL extension initialized');
+    setupWorkspaceBarCentering();
+    console.log('[Auto-RTL] initialized');
   }
 
   if (document.readyState === 'loading') {
