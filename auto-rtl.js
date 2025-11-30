@@ -10,21 +10,30 @@
   // === Selectors to EXCLUDE from RTL/LTR processing ===
   const EXCLUDED_SELECTORS = [
     '[data-element-id="workspace-bar"]',
-    '[data-element-id="workspace-bar"] *',  // همه فرزندان workspace-bar
+    '[data-element-id="workspace-bar"] *',
     'nav',
     'header',
     'footer',
     '[role="navigation"]',
     '[role="menu"]',
     '[role="menubar"]',
-    '[role="toolbar"]'
+    '[role="toolbar"]',
+    'button',
+    'button *'  // همه المنت‌های داخل دکمه‌ها
   ].join(', ');
 
-  // Add stylesheet (RTL helpers only)
+  // Add stylesheet
   const style = document.createElement('style');
   style.textContent = `
     .tm-rtl { direction: rtl !important; text-align: right !important; }
     .tm-ltr { direction: ltr !important; text-align: left !important; }
+    
+    /* === Force center alignment for all button spans === */
+    button > span,
+    button > span > span,
+    button span {
+      text-align: center !important;
+    }
   `;
   document.head.appendChild(style);
 
@@ -32,10 +41,23 @@
   function shouldExclude(el) {
     if (!el || !el.matches) return true;
     try {
-      return el.matches(EXCLUDED_SELECTORS) || el.closest('[data-element-id="workspace-bar"]');
+      return el.matches(EXCLUDED_SELECTORS) || 
+             el.closest('[data-element-id="workspace-bar"]') ||
+             el.closest('button');
     } catch (e) {
       return false;
     }
+  }
+
+  // ---- Force center text on all button spans ----
+  function centerAllButtonSpans() {
+    document.querySelectorAll('button span').forEach(span => {
+      span.style.textAlign = 'center';
+      // اگر کلاس tm-ltr یا tm-rtl داره، حذفش کن
+      span.classList.remove('tm-rtl', 'tm-ltr');
+      span.removeAttribute('dir');
+      span.style.removeProperty('direction');
+    });
   }
 
   // ---- Center only the bottom workspace bar (tabs) ----
@@ -43,7 +65,7 @@
     const bar = document.querySelector('[data-element-id="workspace-bar"] .fade-right-edge');
     if (!bar) return;
 
-    // === پاک کردن کلاس‌های tm-rtl/tm-ltr که اشتباهی اضافه شده ===
+    // پاک کردن کلاس‌های tm-rtl/tm-ltr که اشتباهی اضافه شده
     const workspaceRoot = document.querySelector('[data-element-id="workspace-bar"]');
     if (workspaceRoot) {
       workspaceRoot.querySelectorAll('.tm-rtl, .tm-ltr').forEach(el => {
@@ -52,25 +74,22 @@
         el.style.removeProperty('direction');
         el.style.removeProperty('text-align');
       });
-      // خود workspace-bar را هم پاک کن
       workspaceRoot.classList.remove('tm-rtl', 'tm-ltr');
       workspaceRoot.removeAttribute('dir');
       workspaceRoot.style.removeProperty('direction');
       workspaceRoot.style.removeProperty('text-align');
     }
 
-    // Main container: force flex center via inline style
+    // Main container: force flex center
     bar.style.display = 'flex';
     bar.style.justifyContent = 'center';
     bar.style.alignItems = 'center';
     bar.style.textAlign = 'center';
     bar.style.paddingLeft = '0px';
     bar.style.paddingRight = '0px';
-
-    // Remove Tailwind "start" alignment classes if they exist
     bar.classList.remove('justify-start', 'items-start');
 
-    // Inner wrapper that holds all buttons
+    // Inner wrapper
     const inner = bar.querySelector('.min-w-max');
     if (inner) {
       inner.style.display = 'flex';
@@ -78,18 +97,19 @@
       inner.style.justifyContent = 'center';
       inner.style.textAlign = 'center';
       inner.style.gap = '0.5rem';
-
       inner.style.flexDirection = window.innerWidth >= 768 ? 'column' : 'row';
-
       inner.classList.remove('justify-start', 'items-start');
     }
 
-    // Center each button's span content
-    bar.querySelectorAll('button > span').forEach(span => {
+    // === Center ALL spans inside buttons ===
+    bar.querySelectorAll('button span').forEach(span => {
       span.style.display = 'flex';
       span.style.justifyContent = 'center';
       span.style.alignItems = 'center';
       span.style.textAlign = 'center';
+      span.classList.remove('tm-rtl', 'tm-ltr');
+      span.removeAttribute('dir');
+      span.style.removeProperty('direction');
     });
 
     console.log('[Auto-RTL] centerWorkspaceBarOnce applied');
@@ -97,12 +117,16 @@
 
   function setupWorkspaceBarCentering() {
     centerWorkspaceBarOnce();
+    centerAllButtonSpans();
 
     const root = document.querySelector('[data-element-id="workspace-bar"]');
     if (!root) return;
 
     const observer = new MutationObserver(() => {
-      setTimeout(centerWorkspaceBarOnce, 0);
+      setTimeout(() => {
+        centerWorkspaceBarOnce();
+        centerAllButtonSpans();
+      }, 0);
     });
 
     observer.observe(root, {
@@ -116,6 +140,21 @@
       if (!bar) return;
       bar.style.flexDirection = window.innerWidth >= 768 ? 'column' : 'row';
     });
+  }
+
+  // ---- Watch for any new buttons added to the page ----
+  function watchButtons() {
+    const observer = new MutationObserver(() => {
+      centerAllButtonSpans();
+    });
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+
+    // اجرای اولیه
+    centerAllButtonSpans();
   }
 
   // ---- RTL logic for editors & messages ----
@@ -134,7 +173,6 @@
 
   function applyDirection(el, rtl) {
     if (!el) return;
-    // === چک کن که المنت جزو استثناها نباشد ===
     if (shouldExclude(el)) return;
     
     el.classList.toggle('tm-rtl', rtl);
@@ -143,7 +181,7 @@
       el.setAttribute('dir', rtl ? 'rtl' : 'ltr');
       el.style.direction = rtl ? 'rtl' : 'ltr';
       el.style.textAlign = rtl ? 'right' : 'left';
-    } catch (e) { /* Some elements might be readonly */ }
+    } catch (e) {}
   }
 
   function watchEditors() {
@@ -155,7 +193,6 @@
     ];
 
     function handleEditor(el) {
-      // === چک کن که المنت جزو استثناها نباشد ===
       if (shouldExclude(el)) return;
       if (el._tm_rtl_attached) return;
       el._tm_rtl_attached = true;
@@ -205,8 +242,6 @@
         return;
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
-      
-      // === چک کن که المنت جزو استثناها نباشد ===
       if (shouldExclude(node)) return;
       
       const tag = node.tagName.toLowerCase();
@@ -218,7 +253,6 @@
     }
 
     function evaluateAndApplyToMessage(el) {
-      // === چک کن که المنت جزو استثناها نباشد ===
       if (shouldExclude(el)) return;
       
       const text = el.innerText || el.textContent || '';
@@ -231,7 +265,6 @@
 
     setTimeout(() => {
       document.querySelectorAll('div, p, span').forEach(el => {
-        // === چک کن که المنت جزو استثناها نباشد ===
         if (!shouldExclude(el)) {
           evaluateAndApplyToMessage(el);
         }
@@ -243,6 +276,7 @@
     watchEditors();
     watchMessages();
     setupWorkspaceBarCentering();
+    watchButtons();  // === اضافه شد ===
     console.log('[Auto-RTL] initialized');
   }
 
